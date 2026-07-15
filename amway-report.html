@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>日報レポート作成</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f8f5ff; font-family: 'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif; padding: 20px 16px 60px; }
+    .container { max-width: 620px; margin: 0 auto; }
+    .header { display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg,#7c3aed,#a855f7); border-radius: 16px; padding: 18px 20px; margin-bottom: 16px; color: #fff; }
+    .header-emoji { font-size: 36px; }
+    .header-title { font-size: 20px; font-weight: 700; }
+    .header-sub { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+    .badge { background: rgba(255,255,255,0.25); border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: 600; white-space: nowrap; margin-left: auto; }
+    .info-banner { background: #ede9fe; border: 1px solid #c4b5fd; border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #5b21b6; margin-bottom: 14px; font-weight: 600; }
+    .section { background: #fff; border-radius: 14px; padding: 16px 16px 12px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(124,58,237,0.07); }
+    .section-title { font-weight: 700; font-size: 15px; color: #7c3aed; margin-bottom: 12px; }
+    .schedule-row { margin-bottom: 12px; border: 1px solid #e8e0f5; border-radius: 10px; padding: 10px; background: #faf8ff; }
+    .schedule-top { display: flex; gap: 8px; margin-bottom: 6px; }
+    .task-row { margin-bottom: 10px; border: 1px solid #e8e0f5; border-radius: 10px; padding: 10px; background: #faf8ff; }
+    .task-top { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+    .task-bottom { display: flex; gap: 8px; align-items: center; }
+    .move-col { display: flex; flex-direction: column; gap: 4px; }
+    input, textarea, select {
+      border: 1.5px solid #e2d9f3; border-radius: 8px; padding: 7px 10px;
+      font-size: 14px; outline: none; font-family: inherit; background: #fff; width: 100%;
+    }
+    .input-time { width: 150px; flex-shrink: 0; }
+    .input-title { flex: 1; }
+    textarea { resize: vertical; }
+    select { width: auto; min-width: 90px; cursor: pointer; color: #555; }
+    .btn-move { background: #ede9fe; border: none; border-radius: 6px; color: #7c3aed; font-weight: 700; cursor: pointer; padding: 4px 8px; font-size: 11px; line-height: 1; }
+    .btn-move:disabled { opacity: 0.3; cursor: default; }
+    .btn-remove { background: #fee2e2; border: none; border-radius: 7px; color: #dc2626; font-weight: 700; cursor: pointer; padding: 6px 10px; font-size: 13px; flex-shrink: 0; }
+    .btn-add { background: #f3f0ff; border: 1.5px dashed #a78bfa; border-radius: 8px; color: #7c3aed; font-weight: 600; cursor: pointer; padding: 7px 14px; font-size: 13px; width: 100%; margin-top: 4px; }
+    .btn-generate { background: linear-gradient(135deg,#7c3aed,#a855f7); border: none; border-radius: 12px; color: #fff; font-weight: 700; cursor: pointer; padding: 14px; font-size: 16px; width: 100%; margin-top: 8px; box-shadow: 0 4px 14px rgba(124,58,237,0.3); letter-spacing: 0.5px; }
+    .output-section { margin-top: 20px; background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 2px 8px rgba(124,58,237,0.07); }
+    .output-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .btn-copy { background: #7c3aed; border: none; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer; padding: 7px 14px; font-size: 13px; }
+    pre { background: #f8f5ff; border-radius: 10px; padding: 14px; font-size: 13.5px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; color: #333; border: 1.5px solid #e2d9f3; font-family: inherit; }
+    .hidden { display: none; }
+    .input-note { flex: 1; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="header-emoji">📋</div>
+    <div>
+      <div class="header-title">日報レポート作成</div>
+      <div class="header-sub">アップラインへのLINE報告文をかんたん作成</div>
+    </div>
+    <div class="badge hidden" id="savedBadge">💾 保存！</div>
+  </div>
+
+  <div class="info-banner hidden" id="infoBanner"></div>
+
+  <div class="section">
+    <div class="section-title">昨日の予定 💡</div>
+    <div id="yesterdayList"></div>
+    <button class="btn-add" onclick="addSchedule('yesterday')">＋ 予定を追加</button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">今日の予定 💡</div>
+    <div id="todayList"></div>
+    <button class="btn-add" onclick="addSchedule('today')">＋ 予定を追加</button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">タスク 📝</div>
+    <div id="taskList"></div>
+    <button class="btn-add" onclick="addTask()">＋ タスクを追加</button>
+  </div>
+
+  <button class="btn-generate" onclick="generate()">報告文を作成する ✨</button>
+
+  <div class="output-section hidden" id="outputSection">
+    <div class="output-header">
+      <div class="section-title">📱 LINEに貼り付ける文章</div>
+      <button class="btn-copy" id="copyBtn" onclick="copyText()">📋 コピー</button>
+    </div>
+    <pre id="outputText"></pre>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = "amway-report-v1";
+  let schedules = { yesterday: [], today: [] };
+  let tasks = [];
+  let idCounter = 0;
+  const uid = () => "id" + (++idCounter) + "_" + Date.now();
+
+  // ---- 初期化 ----
+  const todayStr = () => {
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+  };
+
+  window.addEventListener("DOMContentLoaded", () => {
+    const saved = loadFromStorage();
+    const nowDate = todayStr();
+
+    if (saved) {
+      const lastOpenedDate = saved.lastOpenedDate || "";
+      const isNewDay = lastOpenedDate !== nowDate;
+
+      if (isNewDay) {
+        // 日付が変わっていたら今日の予定→昨日へ移す
+        if (saved.todaySchedules && saved.todaySchedules.length > 0) {
+          schedules.yesterday = saved.todaySchedules.map(s => ({ ...s, id: uid() }));
+        } else {
+          schedules.yesterday = [{ id: uid(), time: "", title: "", memo: "" }];
+        }
+        schedules.today = [{ id: uid(), time: "", title: "", memo: "" }];
+        showBanner("✅ 昨日の予定を自動で移しました");
+      } else {
+        // 同じ日ならそのまま復元
+        if (saved.yesterdaySchedules && saved.yesterdaySchedules.length > 0) {
+          schedules.yesterday = saved.yesterdaySchedules.map(s => ({ ...s, id: uid() }));
+        } else {
+          schedules.yesterday = [{ id: uid(), time: "", title: "", memo: "" }];
+        }
+        if (saved.todaySchedules && saved.todaySchedules.length > 0) {
+          schedules.today = saved.todaySchedules.map(s => ({ ...s, id: uid() }));
+        } else {
+          schedules.today = [{ id: uid(), time: "", title: "", memo: "" }];
+        }
+        showBanner("✅ 本日の入力内容を復元しました");
+      }
+      if (saved.tasks && saved.tasks.length > 0) {
+        tasks = saved.tasks.map(t => ({ ...t, id: uid() }));
+      } else {
+        tasks = [{ id: uid(), text: "", status: "pending", note: "" }];
+      }
+    } else {
+      schedules.yesterday = [{ id: uid(), time: "", title: "", memo: "" }];
+      schedules.today = [{ id: uid(), time: "", title: "", memo: "" }];
+      tasks = [{ id: uid(), text: "", status: "pending", note: "" }];
+      showBanner("📝 新規スタートです");
+    }
+
+    // ページを開いた日付を毎回保存
+    const current = loadFromStorage() || {};
+    saveToStorage({ ...current, lastOpenedDate: nowDate });
+
+    renderAll();
+    setTimeout(() => { document.getElementById("infoBanner").classList.add("hidden"); }, 3000);
+  });
+
+  function showBanner(msg) {
+    const el = document.getElementById("infoBanner");
+    el.textContent = msg;
+    el.classList.remove("hidden");
+  }
+
+  // ---- ストレージ ----
+  function saveToStorage(data) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); return true; } catch(e) { return false; }
+  }
+  function loadFromStorage() {
+    try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : null; } catch(e) { return null; }
+  }
+
+  // ---- スケジュール ----
+  function addSchedule(type) {
+    schedules[type].push({ id: uid(), time: "", title: "", memo: "" });
+    renderSchedules(type);
+  }
+  function removeSchedule(type, id) {
+    schedules[type] = schedules[type].filter(s => s.id !== id);
+    renderSchedules(type);
+  }
+  function updateSchedule(type, id, field, value) {
+    const s = schedules[type].find(s => s.id === id);
+    if (s) s[field] = value;
+  }
+
+  function renderSchedules(type) {
+    const listEl = document.getElementById(type === "yesterday" ? "yesterdayList" : "todayList");
+    listEl.innerHTML = "";
+    schedules[type].forEach(s => {
+      const div = document.createElement("div");
+      div.className = "schedule-row";
+      div.innerHTML = `
+        <div class="schedule-top">
+          <input class="input-time" type="text" placeholder="例）20:00〜23:00" value="${esc(s.time)}"
+            oninput="updateSchedule('${type}','${s.id}','time',this.value)">
+          <input class="input-title" type="text" placeholder="予定のタイトル" value="${esc(s.title)}"
+            oninput="updateSchedule('${type}','${s.id}','title',this.value)">
+          <button class="btn-remove" onclick="removeSchedule('${type}','${s.id}')">✕</button>
+        </div>
+        <textarea rows="2" placeholder="気づき・意識すること（任意）"
+          oninput="updateSchedule('${type}','${s.id}','memo',this.value)">${esc(s.memo)}</textarea>
+      `;
+      listEl.appendChild(div);
+    });
+  }
+
+  // ---- タスク ----
+  function addTask() {
+    tasks.push({ id: uid(), text: "", status: "pending", note: "" });
+    renderTasks();
+  }
+  function removeTask(id) {
+    tasks = tasks.filter(t => t.id !== id);
+    renderTasks();
+  }
+  function updateTask(id, field, value) {
+    const t = tasks.find(t => t.id === id);
+    if (t) t[field] = value;
+  }
+  function moveTask(index, dir) {
+    const newIndex = index + dir;
+    if (newIndex < 0 || newIndex >= tasks.length) return;
+    [tasks[index], tasks[newIndex]] = [tasks[newIndex], tasks[index]];
+    renderTasks();
+  }
+
+  function renderTasks() {
+    const listEl = document.getElementById("taskList");
+    listEl.innerHTML = "";
+    tasks.forEach((t, i) => {
+      const div = document.createElement("div");
+      div.className = "task-row";
+      div.innerHTML = `
+        <div class="task-top">
+          <textarea rows="2" placeholder="タスク内容"
+            oninput="updateTask('${t.id}','text',this.value)">${esc(t.text)}</textarea>
+          <div class="move-col">
+            <button class="btn-move" ${i===0?"disabled":""} onclick="moveTask(${i},-1)">▲</button>
+            <button class="btn-move" ${i===tasks.length-1?"disabled":""} onclick="moveTask(${i},1)">▼</button>
+            <button class="btn-remove" onclick="removeTask('${t.id}')">✕</button>
+          </div>
+        </div>
+        <div class="task-bottom">
+          <select oninput="updateTask('${t.id}','status',this.value)">
+            <option value="pending" ${t.status==="pending"?"selected":""}>未着手</option>
+            <option value="done" ${t.status==="done"?"selected":""}>→済</option>
+            <option value="waiting" ${t.status==="waiting"?"selected":""}>返信待ち</option>
+            <option value="in_progress" ${t.status==="in_progress"?"selected":""}>進行中</option>
+          </select>
+          <input class="input-note" type="text" placeholder="一言メモ（任意）" value="${esc(t.note)}"
+            oninput="updateTask('${t.id}','note',this.value)">
+        </div>
+      `;
+      listEl.appendChild(div);
+    });
+  }
+
+  function renderAll() {
+    renderSchedules("yesterday");
+    renderSchedules("today");
+    renderTasks();
+  }
+
+  // ---- 生成 ----
+  function statusLabel(status, note) {
+    const n = note ? `　${note}` : "";
+    if (status === "done") return `\n\t→済${n}`;
+    if (status === "waiting") return `\n\t→済　返信待ち${n}`;
+    if (status === "in_progress") return `\n\t→進行中${n}`;
+    return note ? `\n\t${note}` : "";
+  }
+
+  function generate() {
+    let text = "昨日の予定💡\n\n";
+    schedules.yesterday.forEach(s => {
+      if (!s.time && !s.title) return;
+      text += `■${s.time}\n`;
+      if (s.title) text += `　${s.title}\n`;
+      if (s.memo) text += `${s.memo}\n`;
+      text += "\n";
+    });
+    text += "\n今日の予定💡\n\n";
+    schedules.today.forEach(s => {
+      if (!s.time && !s.title) return;
+      text += `■${s.time}\n`;
+      if (s.title) text += `　${s.title}\n`;
+      if (s.memo) text += `${s.memo}\n`;
+      text += "\n";
+    });
+    text += "\n\nタスク📝\n";
+    tasks.forEach(t => {
+      if (!t.text.trim()) return;
+      t.text.split("\n").forEach((line, i) => { text += i === 0 ? `・${line}` : `\n　${line}`; });
+      text += statusLabel(t.status, t.note) + "\n";
+    });
+
+    document.getElementById("outputText").textContent = text.trim();
+    document.getElementById("outputSection").classList.remove("hidden");
+    document.getElementById("copyBtn").textContent = "📋 コピー";
+
+    if (saveToStorage({ lastOpenedDate: todayStr(), yesterdaySchedules: schedules.yesterday, todaySchedules: schedules.today, tasks })) {
+      const badge = document.getElementById("savedBadge");
+      badge.classList.remove("hidden");
+      setTimeout(() => badge.classList.add("hidden"), 2500);
+    }
+  }
+
+  // ---- コピー ----
+  function copyText() {
+    const text = document.getElementById("outputText").textContent;
+    try {
+      const el = document.createElement("textarea");
+      el.value = text; el.style.position = "fixed"; el.style.opacity = "0";
+      document.body.appendChild(el); el.focus(); el.select();
+      document.execCommand("copy"); document.body.removeChild(el);
+      document.getElementById("copyBtn").textContent = "✅ コピー済！";
+      setTimeout(() => { document.getElementById("copyBtn").textContent = "📋 コピー"; }, 2000);
+    } catch(e) {
+      window.prompt("以下をコピーしてください（Ctrl+C）", text);
+    }
+  }
+
+  // ---- ユーティリティ ----
+  function esc(str) {
+    return (str || "").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+</script>
+</body>
+</html>
